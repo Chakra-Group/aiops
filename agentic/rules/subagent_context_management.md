@@ -53,6 +53,13 @@ Consensus pattern:
 - No worker context may bypass Dharma zero-trust scope (`authorizeMcpInvocation`).
 - English default; zero dummy data in any context snapshot.
 
+## 6. DEV/UAT two-layer validation (MD-000 directive, issue #203)
+Both layers MUST run on DEV (:30081) and UAT (:30082) for every platform; neither alone is sufficient:
+- **Layer 1 — deterministic**: `tools/simulate-functional-test.mjs` (API/contract/semantic checks; DEV 9/9, UAT 9/9).
+- **Layer 2 — real user/browser**: `tools/persona-ui-browser-review.mjs` (headless Edge CDP; real DOM, console errors, images, landmarks across all 13 routes).
+- **Capture findings**: any discrepancy between DEV and UAT, or any UI/UX finding, becomes a task to the owning employee via the PO council backlog — never silently waived. PROD is strictly excluded from functional/browser tests.
+- Proven value: two-layer review caught UAT iniolu missing `<h1>` while DEV passed (UAT image drift) — invisible to deterministic gates alone.
+
 ## 5. Status
 Research + design COMPLETE. Items 1–5 are proposed as backlog (BL-ai-001 in aiops/data/productBacklog.json
 covers the ChakraAI sub-divisions; a dedicated BL for the pool context ledger is tracked). Adoption
