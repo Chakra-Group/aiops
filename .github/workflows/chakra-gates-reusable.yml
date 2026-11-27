@@ -1,0 +1,81 @@
+name: Chakra Gates — Reusable Done-Done + Org Policy + Post-Deploy
+
+# BL-agents-002 / MD directive: every SDLC + org policy gate must be embedded in
+# CI/CD. This OSS-only reusable workflow is the canonical gate definition; any
+# product repo can call it with `uses: Chakra-Group/chakra-agents/.github/workflows/chakra-gates-reusable.yml@main`.
+# It mirrors aiops/tools/done-done-gate.mjs (G1-G15) and the post-deploy functional
+# gate. No commercial tooling or secrets are required.
+
+on:
+  workflow_call:
+    inputs:
+      product_slug:
+        description: Repository directory name to gate (e.g. chakra-agents)
+        required: true
+        type: string
+      node_version:
+        description: Node version for the gate runner
+        required: false
+        type: string
+        default: '22'
+      run_post_deploy:
+        description: Run the post-deploy functional gate (needs a reachable portal URL)
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  done-done-and-policy:
+    name: "G1-G15 + Org Policy + Post-Deploy (${{ inputs.product_slug }})"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out calling product repo
+        uses: actions/checkout@v4
+
+      - name: Check out canonical aiops gates
+        uses: actions/checkout@v4
+        with:
+          repository: Chakra-Group/aiops
+          path: aiops
+
+      - name: Set up Node ${{ inputs.node_version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+
+      # done-done-gate resolves ROOT as aiops/tools/../.. = workspace root and
+      # looks for <workspace>/<product_slug>. Actions checkout puts the product
+      # files at workspace root, so expose them under the canonical slug too.
+      - name: Expose product under canonical slug
+        run: |
+          if [ ! -e "${{ inputs.product_slug }}" ]; then
+            ln -s "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/${{ inputs.product_slug }}"
+          fi
+
+      - name: Done-Done gate G1-G15 (aiops canonical)
+        run: node aiops/tools/done-done-gate.mjs "${{ inputs.product_slug }}"
+
+      - name: Org policy — OSS-only, zero dummy data, English-default UI
+        run: |
+          set -e
+          PRODUCT="${{ inputs.product_slug }}"
+          # No commercial monitoring/observability SDKs (OSS-only policy).
+          if grep -RIlE '(datadog|newrelic|dynatrace|splunk-cloud)' "$PRODUCT/src" "$PRODUCT/bin" 2>/dev/null; then
+            echo "Commercial tooling detected — OSS-only policy violation"; exit 1
+          fi
+          # Zero dummy data: no placeholder literals presented as real records.
+          if grep -RIlE 'TODO_DUMMY|FAKE_DATA|placeholder_user' "$PRODUCT/src" 2>/dev/null; then
+            echo "Dummy-data marker detected"; exit 1
+          fi
+          # English-default UI: catch an explicit non-English default locale.
+          if grep -RIlE "defaultLang(uage)?\s*[:=]\s*['\"](kn|hi|ta|te)['\"]" "$PRODUCT/src" 2>/dev/null; then
+            echo "Non-English UI default detected"; exit 1
+          fi
+          echo "Org policy checks passed"
+
+      - name: Post-deploy functional gate (opt-in)
+        if: ${{ inputs.run_post_deploy }}
+        run: node aiops/scripts/chakra-post-deploy-gate.mjs "${{ inputs.product_slug }}"
