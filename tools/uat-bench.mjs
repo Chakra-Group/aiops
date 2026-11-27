@@ -25,7 +25,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '..')
+const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '../..') // aiops/tools -> workspace
 const ALL = ['chakra-core', 'iniolu', 'chitra', 'kaala', 'sthala', 'planmytravel', 'chakra-ai', 'artha', 'dharma', 'grihakart', 'prachara', 'chakra-agents', 'chakra-cloud']
 const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0
 
